@@ -9,6 +9,9 @@
 - **`tailscale`**: Служебный контейнер, который подключает весь стек к сети Tailscale.
 - **`prometheus`**: Сервис сбора и хранения метрик.
 - **`grafana`**: Сервис для визуализации метрик.
+ - **`loki`**: Хранилище логов (Loki) для поиска и агрегации логов.
+ - **`promtail`**: Агент, который собирает логи из host/containers и пушит их в Loki.
+ - **`alertmanager`**: Маршрутизатор для уведомлений (email, Slack, webhook и т.д.).
 
 Подробные технические требования к проекту можно найти в файле [TECHNICAL_REQUIREMENTS.md](TECHNICAL_REQUIREMENTS.md).
 
@@ -59,6 +62,8 @@ docker compose up -d
 
 - **Prometheus**: `http://monitoring-stack:9090`
 - **Grafana**: `http://monitoring-stack:3000`
+ - **Loki**: `http://monitoring-stack:3100`
+ - **Alertmanager**: `http://monitoring-stack:9093`
 
 ### 5. Остановка
 
@@ -67,3 +72,7 @@ docker compose up -d
 ```bash
 docker compose down
 ```
+
+## Дополнительные руководства
+
+- `DASHBOARDS_AND_ALERTS.md` — шаги по подключению источников Grafana (Prometheus, Loki), настройке дашбордов и уведомлений через Alertmanager.

@@ -1,6 +1,11 @@
 global:
   scrape_interval: 15s
 
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['localhost:9093']
+
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
@@ -21,3 +26,6 @@ scrape_configs:
       # !!! ВАЖНО: Замените 'your-nginx-gateway-host' на реальное MagicDNS имя
       # или IP-адрес вашего хоста в сети Tailscale.
       - targets: ['your-nginx-gateway-host:9100']
+
+rule_files:
+  - "./alert_rules.yml"
