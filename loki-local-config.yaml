@@ -43,6 +43,12 @@ table_manager:
   retention_deletes_enabled: false
   retention_period: 0s
 
+compactor:
+  working_directory: /loki/compactor
+  shared_store: filesystem
+  compaction_interval: 10m
+  retention_enabled: false
+
 ruler:
   enable_api: true
   storage:
