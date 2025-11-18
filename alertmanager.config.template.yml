@@ -1,8 +1,5 @@
 global:
   resolve_timeout: 5m
-  
-web:
-  listen_address: 0.0.0.0:9093
 
 route:
   receiver: 'team-notifications'

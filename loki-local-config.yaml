@@ -12,7 +12,6 @@ ingester:
     ring:
       kvstore:
         store: inmemory
-      replication_factor: 1
 
 limits_config:
   enforce_metric_name: false
