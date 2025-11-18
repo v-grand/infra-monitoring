@@ -1,30 +1,22 @@
 auth_enabled: false
+
 server:
   http_listen_port: 3100
   log_level: info
 
-# Use inmemory KV store for single-node setup (no Consul needed)
-kvstore:
-  store: inmemory
-
-memberlist:
-  node_name: loki
-  bind_port: 7946
-
 ingester:
-  wal:
-    enabled: true
-  chunk_idle_period: 5m
-  max_chunk_age: 1h
+  chunk_idle_period: 3m
+  chunk_retain_period: 1m
   lifecycler:
     ring:
       kvstore:
         store: inmemory
+      replication_factor: 1
 
-distributor:
-  ring:
-    kvstore:
-      store: inmemory
+limits_config:
+  enforce_metric_name: false
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
 
 schema_config:
   configs:
@@ -44,20 +36,19 @@ storage_config:
   filesystem:
     directory: /loki/chunks
 
-compactor:
-  working_directory: /loki/compactor
-  shared_store: filesystem
+chunk_store_config:
+  max_look_back_period: 0s
 
-limits_config:
-  enforce_metric_name: false
-  reject_old_samples: true
-  reject_old_samples_max_age: 168h
-
+table_manager:
+  retention_deletes_enabled: false
+  retention_period: 0s
 
 ruler:
+  enable_api: true
   storage:
     type: local
     local:
       directory: /etc/loki/rules
   rule_path: /etc/loki/rules
   alertmanager_url: http://localhost:9093
+
