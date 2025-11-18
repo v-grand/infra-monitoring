@@ -1,0 +1,22 @@
+# Environment files with secrets
+.env
+.env.local
+.secrets.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (optional - remove if you want to persist)
+# prometheus_data/
+# grafana_data/
+
+# Logs
+*.log

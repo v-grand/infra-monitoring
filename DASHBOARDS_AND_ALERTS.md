@@ -90,29 +90,131 @@ docker compose restart alertmanager
 ---
 
 ## 7. Примеры Dashboard'ов
-- Node/Exporter: диаграммы CPU, Memory, Disk I/O (импортируйте сообщественные дашборды Grafana)
-- Nginx/Ingress: latency, upstream 50x, status codes
+- **Node Exporter** (включен автоматически): диаграммы CPU %, Memory %, Disk I/O, Network Throughput
+  - Найдите в Grafana → Dashboards → "Node Exporter - System Metrics"
+  - JSON находится в `./grafana/dashboards/node-exporter-system.json`
+  - Поддерживает выбор инстанса через переменную `$instance`
+  - Метрики: node_cpu_seconds_total, node_memory_MemAvailable_bytes, node_disk_io_time_seconds_total, node_network_transmit_bytes_total
+- Nginx/Ingress: latency, upstream 50x, status codes (создайте вручную или импортируйте из Grafana Labs)
 - Loki: Log tail panel + query with `{job="docker"}` to filter by container
-
-Пояснение к использованию Loki в Dashboards:
-- В панели Grafana выберите Loki как datasource и укажите метки:
-  - Log labels: `{job="docker", container_name="my-container"}`
-- Используйте `| json` для извлечения полей из логов
+- Для добавления своих дашбордов: экспортируйте JSON из Grafana и положите в `./grafana/dashboards/`
 
 ---
 
-## 8. Советы по безопасности и хранению
-- В продакшен храните секреты (email creds, slack webhooks) в `docker secrets` или защищайте `.env`
-- Используйте persistent volumes (`prometheus_data`, `grafana_data`) — уже настроено в docker-compose
-- Для крупных нагрузок используйте объектное хранилище (S3, GCS) и скалирование Loki
+## 8. Docker Secrets и безопасность Alertmanager
+
+Для отправки уведомлений в Slack/Email необходимо передать чувствительные данные (webhook URL, SMTP пароль) безопасно.
+
+### Настройка переменных окружения
+
+1. Откройте `.env.example` и скопируйте в `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Отредактируйте `.env` с реальными значениями:
+   ```
+   SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK
+   ALERTMANAGER_EMAIL=your-monitoring@company.com
+   SMTP_PASSWORD=your-app-specific-password
+   SMTP_SERVER=smtp.example.com
+   SMTP_PORT=587
+   ```
+
+3. **ВАЖНО**: Добавьте `.env` в `.gitignore` (не коммитьте с реальными секретами):
+   ```
+   echo ".env" >> .gitignore
+   ```
+
+### Запуск с переменными
+
+```powershell
+# С файлом .env (docker compose автоматически прочитает .env)
+docker compose up -d
+
+# Или с внешним файлом секретов
+docker compose --env-file .secrets.env up -d
+```
+
+### Поддерживаемые каналы уведомлений
+
+Alertmanager конфиг находится в `alertmanager.config.template.yml`. Примеры разных receivers:
+
+**Slack:**
+```yaml
+slack_configs:
+  - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK'
+    channel: '#alerts'
+    title: 'Alert: {{ .GroupLabels.alertname }}'
+```
+
+**Email (Gmail/Outlook):**
+```yaml
+email_configs:
+  - to: 'ops@company.com'
+    from: 'alertmanager@company.com'
+    smarthost: 'smtp.gmail.com:587'
+    auth_username: 'alertmanager@gmail.com'
+    auth_password: 'app-specific-password'
+    require_tls: true
+```
+
+**Telegram (через webhook):**
+```yaml
+webhook_configs:
+  - url: 'http://your-telegram-bot:8080/alert'
+    send_resolved: true
+```
+
+**Microsoft Teams:**
+```yaml
+webhook_configs:
+  - url: 'https://outlook.webhook.office.com/webhookb2/...'
+```
+
+Полная документация: см. `DOCKER_SECRETS_EXAMPLE.md`.
 
 ---
 
-## 9. Что можно улучшить дальше
-- Автовыполнение дашбордов по шаблонам (создать JSON dash & положить в `./grafana/dashboards`)
-- Настроить Alertmanager для нескольких каналов и on-call расписаний
-- Добавить роли/персонализации Grafana
+## 9. Тестирование уведомлений
+1. Добавьте временный test-alert в `alert_rules.yml`:
+   ```yaml
+   - alert: TestAlert
+     expr: vector(1)
+     for: 0m
+     labels:
+       severity: critical
+   ```
+
+2. Перезагрузите Prometheus:
+   ```powershell
+   docker compose restart prometheus
+   ```
+
+3. Зайдите в Alertmanager UI: http://monitoring-stack:9093
+   - Должны появиться "TestAlert" в статусе "FIRING"
+   - Проверьте Slack channel или email — должно прийти уведомление
+
+4. Удалите test-alert из конфига и перезагрузитесь
+
+### Отладка
+
+Просмотр логов alertmanager:
+```powershell
+docker logs alertmanager
+```
+
+Проверка webhook URL (для Slack):
+```powershell
+curl -X POST "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK" `
+  -H "Content-Type: application/json" `
+  -d '{"text":"Test alert from Alertmanager"}'
+```
 
 ---
 
-Если нужно — могу автоматически добавить шаблон Dashboard (JSON) для Node Exporter и Nginx.
+## 10. Что можно улучшить дальше
+- Добавить PagerDuty integration для on-call инженеров
+- Настроить template для красивого форматирования уведомлений
+- Использовать Docker Swarm secrets для продакшена (вместо .env)
+- Добавить мониторинг самого Alertmanager (уведомления о недоставленных алертах)

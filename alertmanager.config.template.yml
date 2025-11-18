@@ -1,0 +1,68 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: 'team-notifications'
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+  routes:
+    # Критические алерты идут в оба канала
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      continue: true
+    # Warnings только в Slack
+    - match:
+        severity: warning
+      receiver: 'slack-notifications'
+
+receivers:
+  # Основной приемник - комбо Slack + Email для критических
+  - name: 'critical-alerts'
+    slack_configs:
+      - api_url: 'SLACK_WEBHOOK_URL_PLACEHOLDER'
+        channel: '#critical-alerts'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          *Summary:* {{ index .Alerts 0 "Annotations" "summary" }}
+          *Description:* {{ index .Alerts 0 "Annotations" "description" }}
+          *Firing:* {{ .Alerts | len }}
+        send_resolved: true
+    email_configs:
+      - to: 'EMAIL_PLACEHOLDER'
+        from: 'alertmanager@monitoring.local'
+        smarthost: 'SMTP_SERVER_PLACEHOLDER:SMTP_PORT_PLACEHOLDER'
+        auth_username: 'EMAIL_PLACEHOLDER'
+        auth_password: 'SMTP_PASSWORD_PLACEHOLDER'
+        require_tls: true
+        headers:
+          Subject: '[CRITICAL] {{ .GroupLabels.alertname }}'
+
+  # Slack для предупреждений
+  - name: 'slack-notifications'
+    slack_configs:
+      - api_url: 'SLACK_WEBHOOK_URL_PLACEHOLDER'
+        channel: '#monitoring'
+        title: '⚠️  {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+  # Резервный приемник (email по умолчанию, если выше не сработало)
+  - name: 'team-notifications'
+    email_configs:
+      - to: 'EMAIL_PLACEHOLDER'
+        from: 'alertmanager@monitoring.local'
+        smarthost: 'SMTP_SERVER_PLACEHOLDER:SMTP_PORT_PLACEHOLDER'
+        auth_username: 'EMAIL_PLACEHOLDER'
+        auth_password: 'SMTP_PASSWORD_PLACEHOLDER'
+        require_tls: true
+        headers:
+          Subject: 'Alert: {{ .GroupLabels.alertname }}'
+
+# Группировка уведомлений
+grouping:
+  group_by: ['alertname', 'instance', 'severity']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
